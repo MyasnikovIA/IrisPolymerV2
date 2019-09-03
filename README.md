@@ -17,6 +17,9 @@
 %ZWebNode.project.xml                     -  
 %ZWebNode.Server.xml                      -  Вэб сервер
 %ZWebNode.Session.xml                     -  Сессия для вэб сервера
+----- Компоненты -------
+%ZWebNode.PolymerV2.Element.Grid.xml      -  Элемент Grid (в разработке)
+------------------------
 </pre>
 <h3>3) Запустить сервер</h3>
 <pre>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 16:37:10">
+<Class name="%ZWebNode.PolymerV2.Element.Grid">
+<Super>%RegisteredObject</Super>
+<TimeChanged>65259,59808.278815</TimeChanged>
+<TimeCreated>65259,57412.277345</TimeCreated>
+
+<Parameter name="TagName">
+<Default>csp-grid</Default>
+</Parameter>
+
+<Property name="employees">
+<Type>%ZWebNode.PolymerV2.Type.Array</Type>
+<InitialExpression>"[{'first': 'Bob', 'last': 'Smith'},{'first': 'Bob', 'last': 'Smith'},{'first': 'Bob', 'last': 'Smith'},{'first': 'Bob', 'last': 'Smith'},{'first': 'Sally', 'last': 'Johnson'}]"</InitialExpression>
+</Property>
+
+<XData name="template">
+<Data><![CDATA[
+<dom-module id="#(%TagName)#">
+  <template>
+    <div> Employee list: </div>
+    <div><span>NewProperty1: {{NewProperty1}}</span></div>
+    <button on-click="onClickFunc">Change value NewProperty1</button>
+    <template is="dom-repeat" id="employeeList" items="{{employees}}">
+     <div> {{index}} First name: <span>{{item.first}}</span> Last name: <span>{{item.last}}</span></div>
+    </template>
+  </template>
+</dom-module>
+]]></Data>
+</XData>
+
+<Method name="onClickFunc">
+<ClassMethod>1</ClassMethod>
+<Language>cache</Language>
+<WebMethod>1</WebMethod>
+<Implementation><![CDATA[
+	&js< 
+	   THIS.NewProperty1='0000000000000000000'; 
+	   console.log(55551);
+	 >
+]]></Implementation>
+</Method>
+</Class>
+</Export>
