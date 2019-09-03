@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 21:27:34">
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 21:52:08">
 <Class name="%ZWebNode.Session">
 <Super>%Persistent</Super>
-<TimeChanged>65259,36045.507699</TimeChanged>
+<TimeChanged>65259,78692.792707</TimeChanged>
 <TimeCreated>65250,56030.76801</TimeCreated>
 
 <Property name="SessionId">
@@ -84,7 +84,7 @@ Cleanup CSP session object.</Description>
 <Implementation><![CDATA[
 	#Dim sc As %Status
 	Set sc=$$$OK
-	Lock -^mtempZWebServerNodeSessionD(i%SessionId)
+	Lock -^ZWebServerNodeSessionD(i%SessionId)
 	Set i%%Concurrency=0
 	Do $system.CLS.SetModified(0)
 	Quit sc
@@ -97,7 +97,7 @@ Cleanup CSP session object.</Description>
 <Implementation><![CDATA[
 	#Dim data
 	If i%%Concurrency Quit $$$OK
-	Lock +^mtempZWebServerNodeSessionD(i%SessionId):+$get(timeout)
+	Lock +^ZWebServerNodeSessionD(i%SessionId):+$get(timeout)
 	Set i%%Concurrency=1
 	Quit $$$OK
 ]]></Implementation>
@@ -197,11 +197,11 @@ Write $Data(%session.Data(index))
 
 <Storage name="Default">
 <Type>%Library.CacheStorage</Type>
-<DataLocation>^mtempZWebServerNodeSessionD</DataLocation>
+<DataLocation>^ZWebServerNodeSessionD</DataLocation>
 <DefaultData>SessionDefaultData</DefaultData>
-<IdLocation>^mtempZWebServerNodeSessionD</IdLocation>
-<IndexLocation>^mtempZWebServerNodeSessionI</IndexLocation>
-<StreamLocation>^mtempZWebServerNodeSessionS</StreamLocation>
+<IdLocation>^ZWebServerNodeSessionD</IdLocation>
+<IndexLocation>^ZWebServerNodeSessionI</IndexLocation>
+<StreamLocation>^ZWebServerNodeSessionS</StreamLocation>
 <Data name="SessionDefaultData">
 <Value name="1">
 <Value>%%CLASSNAME</Value>

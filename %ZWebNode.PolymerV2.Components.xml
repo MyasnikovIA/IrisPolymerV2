@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 21:28:53">
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 21:52:25">
 <Class name="%ZWebNode.PolymerV2.Components">
 <Description><![CDATA[
 Подключение компонентов на CSP странице
 #("<link rel='import' href='"_$zcvt("%ZWebNode.PolymerV2.Components","O","URL")_".cls'>")# ]]></Description>
 <Super>%CSP.Page</Super>
-<TimeChanged>65259,77140.900057</TimeChanged>
+<TimeChanged>65259,77458.76305</TimeChanged>
 <TimeCreated>65259,33340.912898</TimeCreated>
 
 <Method name="ExecFrag">
@@ -525,7 +525,7 @@
        }   
     }
     var UrlServerController='/*($zcvt(%ClassName,"O","URL")_".cls"  )*/';
-    var requestSendServer =  new XMLHttpRequest();//CreateRequest();
+    var requestSendServer =  new XMLHttpRequest();
     requestSendServer.ontimeout = function (e) { alert('TymeOut'); }
     if (FunCallBack==null){
         requestSendServer.open('POST',UrlServerController , false);
