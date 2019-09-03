@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:05">
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 21:28:53">
 <Class name="%ZWebNode.PolymerV2.Components">
 <Description><![CDATA[
 Подключение компонентов на CSP странице
 #("<link rel='import' href='"_$zcvt("%ZWebNode.PolymerV2.Components","O","URL")_".cls'>")# ]]></Description>
 <Super>%CSP.Page</Super>
-<TimeChanged>65259,49711.426538</TimeChanged>
+<TimeChanged>65259,77140.900057</TimeChanged>
 <TimeCreated>65259,33340.912898</TimeCreated>
 
 <Method name="ExecFrag">
@@ -28,6 +28,19 @@
    }else{                  s ClassName=$p(Name,":",1),XdataName=$p(Name,":",2)  }
    s gl="^oddDEF("""_ClassName_""",""x"","""_XdataName_""",21)"  
    s FragOnPageInd=""  f {  s FragOnPageInd=$o(@gl@(FragOnPageInd))  q:FragOnPageInd=""     d ..ExecFrag(@gl@(FragOnPageInd),"#(",")#")     w $c(13,10)  }
+]]></Implementation>
+</Method>
+
+<Method name="OnPreHTTP">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Library.Boolean</ReturnType>
+<Implementation><![CDATA[
+  ; s %response.CharSet="CP1251"
+  ; s %response.CharSet="UTF-8"
+  if $isobject(%request.Content){
+  	Do %response.SetHeader("Content-Type","application/javascript")   
+  }
+  q 1
 ]]></Implementation>
 </Method>
 
@@ -218,24 +231,19 @@
 	                     
 	                     if $d(^oddDEF(ClassName,"m",MethodName,32)),^oddDEF(ClassName,"m",MethodName,32)'="javascript"{
 		                    w "     "_MethodName_"("_args_") { ",!
-		                    
-		                    w "       try {  "
-		                    if $d(^oddDEF(ClassName,"m",MethodName,42)) {
-			                   s isEval=0
-		                    }else{
-			                   s isEval=1 
-		                    }
-		                    if isEval=0 w "return"
-		                    if isEval=1 w " eval("
 		                    s ^||WEVENT=$$$cspEncode(%session.Key,$zu(5)_":"_ClassName_"."_MethodName) 
-		                    w " SendServer('"_^||WEVENT_"'"
-                            if $l(args)>0 w ","_args
-		                     w ")"  
-		                    if isEval=1 w ")"
-		                    w ";  } catch (e) { "
-		                    if isEval=0 w " return e ;"
-		                    if isEval=1 w " console.log('ERROR','"_ClassName_":"_MethodName_"',e) ;"
-		                    w "   } ",!
+		                   
+		                    if $d(^oddDEF(ClassName,"m",MethodName,42)) {
+			                   w "       try {  "
+			                   w "return SendServer('"_^||WEVENT_"' "
+                               if $l(args)>0 w ","_args
+		                       w ");} catch (e) { return e ; } ",!
+		                    }else{
+			                   w " var resFunColBack= function(THIS,txt){ if(txt!=''){  try {  eval(txt); } catch (e) {  console.log('Error',e);   }  } }  ",!
+			                   w " SendServer('"_^||WEVENT_"',this,resFunColBack "
+                               if $l(args)>0 w ","_args
+		                       w ")"  
+		                    }
 		                    w "     }",!   
 	                     }
 		              }
@@ -480,40 +488,6 @@
 ]]></Implementation>
 </Method>
 
-<Method name="CreateRequest">
-<Language>javascript</Language>
-<WebMethod>1</WebMethod>
-<ClientMethod>1</ClientMethod>
-<Implementation><![CDATA[
-    var Request = false;
-
-    if (window.XMLHttpRequest)
-    {
-        //Gecko-совместимые браузеры, Safari, Konqueror
-        Request = new XMLHttpRequest();
-    }
-    else if (window.ActiveXObject)
-    {
-        //Internet explorer
-        try
-        {
-             Request = new ActiveXObject("Microsoft.XMLHTTP");
-        }    
-        catch (CatchException)
-        {
-             Request = new ActiveXObject("Msxml2.XMLHTTP");
-        }
-    }
- 
-    if (!Request)
-    {
-        console.log("Невозможно создать XMLHttpRequest");
-    }
-    
-    return Request;
-]]></Implementation>
-</Method>
-
 <Method name="SendServer">
 <FormalSpec>MethodName</FormalSpec>
 <Language>javascript</Language>
@@ -522,18 +496,16 @@
 <Implementation><![CDATA[
     var FunCallBack=null;
     var ContextElement=null;
-    
-    
     var arr=new Array();
     if ((''+SendServer.arguments[1])=='[object Arguments]'){
        for(var ind in SendServer.arguments[1]){
 	        if (SendServer.arguments[1][ind]==undefined){continue;} 
-	        if (typeof SendServer.arguments[ind] === 'function'){
+	        if (typeof SendServer.arguments[1][ind] === 'function'){
 		       FunCallBack=SendServer.arguments[ind];
 	           continue;
 	        } 
-	        if ((SendServer.arguments[ind]+'') == '[object HTMLElement]'){
-		       ContextElement=SendServer.arguments[ind];
+	        if (((SendServer.arguments[1][ind]+'') == '[object HTMLElement]')||((SendServer.arguments[1][ind]+'') == '[object HTMLUnknownElement]')){
+		       ContextElement=SendServer.arguments[1][ind];
 	           continue;
 	        } 
 	        arr.push(SendServer.arguments[1][ind]); 
@@ -545,7 +517,7 @@
 		    FunCallBack=SendServer.arguments[ind];
 	        continue;
 	     } 
-         if ((SendServer.arguments[ind]+'') == '[object HTMLElement]'){
+         if (((SendServer.arguments[ind]+'') == '[object HTMLElement]')||((SendServer.arguments[ind]+'') == '[object HTMLUnknownElement]')){
              ContextElement=SendServer.arguments[ind];
 	         continue;
 	     } 
@@ -553,7 +525,7 @@
        }   
     }
     var UrlServerController='/*($zcvt(%ClassName,"O","URL")_".cls"  )*/';
-    var requestSendServer = CreateRequest();
+    var requestSendServer =  new XMLHttpRequest();//CreateRequest();
     requestSendServer.ontimeout = function (e) { alert('TymeOut'); }
     if (FunCallBack==null){
         requestSendServer.open('POST',UrlServerController , false);
@@ -568,7 +540,11 @@
   	      if (this.readyState == 4 && this.status == 200) {
 	         if (typeof FunCallBack === 'function'){
 	              if (ContextElement!=null){
-	                 FunCallBack(ContextElement,this.responseText);
+		            try {
+			           FunCallBack(ContextElement,this.responseText);
+		            } catch (e) {   
+		              FunCallBack(e,this.responseText);   
+		            } 
 	              }else{
 	                 FunCallBack(this.responseText);
 	              }
