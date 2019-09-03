@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:12">
+<Class name="%ZWebNode.PolymerV2.ExsamplePage">
+<Super>%CSP.Page</Super>
+<TimeChanged>65259,50321.556137</TimeChanged>
+<TimeCreated>65259,37402.050268</TimeCreated>
+
+<Method name="OnPreHTTP">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Library.Boolean</ReturnType>
+<Implementation><![CDATA[
+  ; s %response.CharSet="CP1251"
+  // s %response.CharSet="UTF8"
+  // Do %response.SetHeader("Content-Type","application/javascript")   
+  q 1
+]]></Implementation>
+</Method>
+
+<Method name="OnPage">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+/// Если сервер запущен с параметрами:
+///   d ##class(%ZWebNode.Server).Start(6010,"D:\AppServ\www","index.html","UTF8")
+/// Тогда необходимо указать HTML странице  "windows-1251"
+///    <meta charset="windows-1251"> - это не ошибка , так надо для русских букв во всех браузерах 
+ &html<
+<!doctype html>
+<html>
+  <head>
+   <meta charset="windows-1251">
+     <script src="bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+     #("<link rel='import' href='"_$zcvt("%ZWebNode.PolymerV2.Components","O","URL")_".cls'>")# 
+  </head>
+  <body>
+    <demo-element></demo-element>
+  </body>
+</html>
+>
+	Quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+</Export>

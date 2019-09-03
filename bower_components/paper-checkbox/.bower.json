@@ -1,0 +1,16 @@
+{
+  "name": "paper-checkbox",
+  "license": "http://polymer.github.io/LICENSE.txt",
+  "homepage": "https://github.com/PolymerElements/paper-checkbox",
+  "version": "3.0.1",
+  "_release": "3.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v3.0.1",
+    "commit": "dc24d8ed33539553a73477f4b509b923d84c2ed3"
+  },
+  "_source": "git://github.com/PolymerElements/paper-checkbox.git",
+  "_target": "^3.0.1",
+  "_originalSource": "git://github.com/PolymerElements/paper-checkbox",
+  "_direct": true
+}

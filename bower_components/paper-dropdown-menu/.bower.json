@@ -1,0 +1,16 @@
+{
+  "name": "paper-dropdown-menu",
+  "license": "http://polymer.github.io/LICENSE.txt",
+  "homepage": "https://github.com/PolymerElements/paper-dropdown-menu",
+  "version": "3.0.1",
+  "_release": "3.0.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v3.0.1",
+    "commit": "4808180d9cb0f4125e96cf4cf9494ae4facf1d5c"
+  },
+  "_source": "git://github.com/PolymerElements/paper-dropdown-menu.git",
+  "_target": "^3.0.1",
+  "_originalSource": "git://github.com/PolymerElements/paper-dropdown-menu",
+  "_direct": true
+}

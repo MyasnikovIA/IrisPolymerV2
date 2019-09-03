@@ -1,0 +1,869 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:21">
+<Class name="%ZWebNode.Server">
+<Description><![CDATA[
+<example>
+
+
+  <meta charset="windows-1251"> - это не ошибка , так надо для русских букв во всех браузерах 
+  d ##class(%ZWebNode.Server).Start(6010,"D:\AppServ\www","index.html","UTF8")
+ 
+  ---------------------------------
+  <meta charset="windows-1251">
+  d ##class(%ZWebNode.Server).Start(6010,"D:\AppServ\www","index.html","CP1251")
+  ---------------------------------
+  d ##class(%ZWebNode.Server).Stop(6010)
+  d ##class(%ZWebNode.Server).Stop()
+</example>]]></Description>
+<Super>%RegisteredObject</Super>
+<TimeChanged>65259,50165.399653</TimeChanged>
+<TimeCreated>65255,57088.000835</TimeCreated>
+
+<Method name="ExportUDL">
+<Description>
+d ##class(%ZWebNode.Server).ExportUDL()</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>path=""</FormalSpec>
+<Implementation><![CDATA[
+   if $l(path)=0  d $system.OBJ.ExportUDL(##this_".CLS", "C:\TMP\"_##this_".CLS","/diffexport")
+   e  d $system.OBJ.ExportUDL(##this_".CLS", path,"/diffexport")
+]]></Implementation>
+</Method>
+
+<Method name="Stop">
+<Description>
+Остановить работу сервера</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>port:%Integer=6010</FormalSpec>
+<Implementation><![CDATA[
+      s ^%ZWebNodeServerKill(port)=1
+      S httprequest=##class(%Net.HttpRequest).%New()
+      s httprequest.Server="127.0.0.1"
+      s httprequest.Port=port
+      s httprequest.Timeout=1
+      d httprequest.Get("/")
+      s httprequest=""
+      h 1
+      w !,"Server "_port_" stoped"
+      q
+]]></Implementation>
+</Method>
+
+<Method name="Start">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>port:%Integer=6010,StaticPath="",startPage:%String="index.html",CharSet=""</FormalSpec>
+<Implementation><![CDATA[
+	 ; s ^%SYS("WebServer","Port")=port
+     s methodDefault = "OnPage"
+     k ^%ZWebNodeServerKill(port)
+     w !,"Автор: Мясников Иван Александрович"
+     w !,"Email: Miacom@mail.ru"
+     w !
+     s port = $G(port)  
+     s TimeOut=3200
+     s startPage=$g(startPage)
+     s methodDefault=$g(methodDefault )
+          if $d(^%ZWebNodeServerCfg(port)) d
+          .    d ..Stop(port)
+          .    k ^%ZWebNodeServerCfg(port)
+          s ^%ZWebNodeServerCfg(port)=$lb(port,TimeOut,StaticPath,"", startPage,methodDefault,CharSet)
+     s cmd="cmd /c  start ""explorer.exe""  ""http://127.0.0.1:"_port_"/"_startPage_""""
+     ; d $zf(-1,cmd,1)
+     job ..startJob(port)
+     w !,"Start server:"_port
+     q
+]]></Implementation>
+</Method>
+
+<Method name="startJob">
+<Description>
+Работа сокет сервера в паралельном потоке.
+Ожидание подключения и создание обработчика клиента в паралельном потоке</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>port</FormalSpec>
+<Implementation><![CDATA[
+     s port = $lg(^%ZWebNodeServerCfg(port),1)  
+     SET dev="|TCP|1"
+     OPEN dev:(:port:"MA"):200
+     s inData=""
+     s indSrv=0
+     s isEnd=0
+     k ^%ZWebNodeServerKill(port)
+     For  USE dev  READ inData q:isEnd=1  Do:$T
+     .  if $d(^%ZWebNodeServerKill(port))   s isEnd=1
+     .  USE dev  
+     .  Job ..childVar(port):(:17::)  ; Concurrent server bit is on
+     .  If $ZCHILD=0 w " Server can't create new JOB!"
+     Close dev   
+     k ^%ZWebNodeServerKill(port)
+     Quit
+]]></Implementation>
+</Method>
+
+<Method name="childVar">
+<Description>
+
+Процедура обработки клиентского запроса
+</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>port</FormalSpec>
+<Implementation><![CDATA[
+
+   s TimeOut=$lg(^%ZWebNodeServerCfg(port),2)
+   s %CacheStaticPath=$lg(^%ZWebNodeServerCfg(port),3)
+   s startPage=$lg(^%ZWebNodeServerCfg(port),5)
+   s methodDefault=$lg(^%ZWebNodeServerCfg(port),6)
+   s CharSet=$lg(^%ZWebNodeServerCfg(port),7)
+   
+   zn "%SYS" ; переключаем область имен
+   s %CacheClassLibCSP= "%ZWebNode.Lib.js"
+   s numPac=0
+   s isCloseChaild=0 
+   s SocketTempIndex=0
+   USE $ZUTIL(53):(::"M")
+   s I=$ZU(111,0)
+   s ipOne=$A(I,1)_"."_$A(I,2)_"."_$A(I,3)_"."_$A(I,4)
+   s ip=ipOne_":"_($A(I,5)*256+$A(I,6))
+   ; s ip=$ZU(67, 15, $job)
+   s countEnter=0
+   s numPack=0
+   s isEndTitle=0 
+   ; Инициализируем переменную для работы в CSP классах
+   s %request=##class(%CSP.Request).%New()
+   s %response=##class(%CSP.Response).%New()
+   Do %response.SetHeader("Content-Type","text/html")   
+   d %request.InsertCgiEnv("Cache version",$$GetVersion^%apiOBJ())
+   d %request.InsertCgiEnv("Cache port",port)
+   d %request.InsertCgiEnv("QUERY_PAGE",startPage)
+   d %request.InsertCgiEnv("CLIENT_IP",ip)
+   d %request.InsertCgiEnv("REMOTE_ADDR",$ZU(67, 15, $job))
+   d %request.InsertCgiEnv("CONTENT_TYP","html") 
+   d %request.InsertCgiEnv( "SERVER_NAME",$zu(110))
+   if CharSet'=""{ 
+       s %response.CharSet=CharSet
+	   ; s %response.CharSet="UTF8"
+	   ; s %response.CharSet="CP1251"
+   }else{
+	  // if $SYSTEM.Version.IsUnicode()'=1  s %response.CharSet="UTF8"
+   }
+   s %SYSLOG=1
+   s %CSPsc=1
+   ; Set %session.AppTimeout = 3600 
+   s isTerminal=0
+   s isWebSocket=0
+   s isWebSocketKey=""
+   s WebSocketVer=-1
+   s FallLoad=0
+   s %FallLoadRunJob=0
+   s DebInf=""
+   s RefererUrl=""
+   For  Q:((isCloseChaild=1)||($T=1)||(isTerminal=1) )  d
+   .  If $T=1 s isCloseChaild=1 
+   .   // Если терминальный запрос, тогда уничтожаем этот процесс
+   .   // if isTerminal=1 d $zu(4,$job)
+   .  if isEndTitle=0 {
+   .     S dev=$ZUTIL(53)  
+   .     USE dev:(::"M")  
+   .     READ inData:1
+   .     s DebInf=DebInf_$c(13,10)_inData
+   .     ; s ^debug($job,numPack)=inData
+   .     s numPack=numPack+1
+   .        ; Если в первой строке нет слов GET или POST , тогда запрос произведен из терминала
+   .        if numPack=1  if $l(inData,"GET /")=1  ,$l(inData,"POST /")=1    s isTerminal=1 q
+   .        ; Меняем кодировку входных данных(разкоментируется при необходимости, в зовисимости от версии cache')
+   .        ; s inData= $ZCVT(inData,"I","URL")
+   .        ; s inData=$zcvt($zcvt(inData,"I","URL"),"I","UTF8")
+   .        ; s inData= $ZCVT(inData,"I","UTF8")
+   .
+   .      if numPack=1 d ; обработка первой строки HTML запроса
+   .      .   if $l(inData,"GET /")=2   d 
+   .      .   .  s zapros=$p(inData,"GET /",2)
+   .      .   .  d %request.InsertCgiEnv("REQUEST_METHOD","GET")
+   .      .   .  s zapros=$p(zapros," HTTP/",1)   , isGet=1 ,TypeZapros="GET"  
+   .      .   if $l(inData,"POST /")=2  d 
+   .      .   .  s zapros=$p(inData,"POST /",2)   
+   .      .   .  d %request.InsertCgiEnv("REQUEST_METHOD","POST")
+   .      .   .  s zapros=$p(zapros," HTTP/",1)   , isPost=1 ,TypeZapros="POST" 
+   .      .  
+   .      .   if $l(zapros)=0 s zapros=startPage
+   .      .   if $l($p(zapros,"?",1))=0   s zapros=startPage_"/"_zapros
+   .      .    ; если GET запрос и присутствует один символ "?" тогда заменяем его на "/?"
+   .      .   if $l(zapros,"/?")=1 , $l(zapros,"?")'=1 , $e(zapros, $l( $p(zapros,"?",1)),$l( $p(zapros,"?",1)))'="/"   s zapros=$e(zapros,1,$l( $p(zapros,"?",1)))_"/?"_$e(zapros,$l( $p(zapros,"?",1))+2,$l(zapros))
+   .      .
+   .      .       if $l(zapros,"csp/broker/cspxmlhttp.js")=2 {
+   .      .   	      s FallLoad=1
+   .      .        }
+   .      .        if $l(zapros,"csp/broker/cspbroker.js")=2 {
+   .      .           s %FallLoadRunJob=1
+   .      .           s zapros=$replace(zapros,"cspbroker.js", %CacheClassLibCSP_".cls")
+   .      .        }
+   .      .   
+   .      .   Do %request.InsertCgiEnv("QUERY_STRING",zapros)
+   .      .   Do %request.InsertCgiEnv("PATH_TRANSLATED",$SYSTEM.CSP.GetFileName("/"_zapros))
+   .      .   Do %request.InsertCgiEnv("LOCAL_PATH",$SYSTEM.CSP.GetFileName("/"_zapros))   
+   .      .   Do %request.InsertCgiEnv("SERVER_ADDR",$p(ip,":",1))   
+   .      .   Do %request.InsertCgiEnv("REMOTE_PORT",$p(ip,":",2))   
+   .      .   Do %request.Set("clientip",ip) 
+   .      .   Do:$l(zapros)=0 %request.InsertCgiEnv("REQUEST_URI",zapros)   
+   .      .   q
+   .   
+   . 
+   .     if $l(inData,":") >1 d
+   .     .  s nam=$p(inData,": ",1)
+   .     .  s val=$p(inData,": ",2)
+   .     .  Do %request.Set(nam,val)    
+   .     .  do %request.InsertCgiEnv($ZCVT(nam,"U"),val)
+   .     .  if nam="Referer"   s RefererUrl=val ; d %request.InsertCgiEnv("HTTP_REFERER",val)
+   .   
+   .     ; проверяем наличие трех Enter (это признак окончания заголовка html запроса)
+   .       if $l(inData)=0 s countEnter=countEnter+1
+   .       if countEnter=2 s isEndTitle=1 
+   .       if $l(inData)>0 s countEnter=0
+   .       q
+   .  }
+   .
+   .  ; читаем тело POST запроса 
+   .  if $l(%request.GetCgiEnv("CONTENT-LENGTH"))'=0 {
+   .       s lenPost=%request.GetCgiEnv("CONTENT-LENGTH")
+   .       d %request.InsertCgiEnv("CONTENT_LENGTH",lenPost)
+   .       ; s BodyPost=##class(%CSP.BinaryStream).%New()
+   .       ; s %request.Content=##class(%CSP.BinaryStream).%New()
+   .       Set %request.Content=##class(%GlobalCharacterStream).%New()
+   .       s indPostTeloZaprosa=0
+   .       s isCloseChaildPost=0
+   .       ;  while (isCloseChaildPost=0&&lenPost>0) {
+   .       while (lenPost>0) {  
+   .          If $T=1 s isCloseChaildPost=1
+   .          USE $ZUTIL(53):(::"M")  
+   .          READ inData:1 ; 0.01  
+   .          s lenPost=lenPost-$l(inData)
+   .          s indPostTeloZaprosa=indPostTeloZaprosa+1
+   .          s ^mtempWebNodeServerPost($JOB,indPostTeloZaprosa)=inData
+   .          ; s ^debug("POST",indPostTeloZaprosa)=inData
+   .          ; s ^debug("POST",indPostTeloZaprosa,0)=$l(inData)
+   .          d %request.Content.Write(inData)
+   .          ; s inData= $ZCVT(inData,"I","URL")
+   .          ; Разбираем параметры из первой строки тела post запроса
+   .          if $l(inData,"=")>1 {
+   .          for  {
+   .               s nam=$e(inData,1,$l($p(inData,"=",1)))
+   .               s inData=$e(inData,$l(nam)+1,$l(inData))
+   .               s val=$e(inData,2,$l($p(inData,"&",1)))
+   .               s inData=$e(inData,$l(val)+3,$l(inData))
+   .               if $l(val)>32760 {
+   .                  s obj=##class(%CSP.CharacterStream).%New()
+   .                  d obj.Write(val)
+   .                  Do %request.Set(nam,obj)
+   .               } else {
+   .                  Do %request.Set(nam,val)
+   .               }
+   .               q:$l(inData)=0
+   .               q:$l(inData,"=")=1
+   .            }
+   .          }
+   .       }
+   .       d %request.Content.Rewind()
+   .       ;   for  {
+   .       ;     q:%request.Content.AtEnd;
+   .       ;     s ^deb=%request.Content.Read(32000)
+   .       ;   }
+   .       s isCloseChaild=1  
+   .       q
+   .    }
+   .    s isCloseChaild=1 
+   .    q
+   q:ip=""
+ 
+   if RefererUrl'="" {   d %request.InsertCgiEnv("HTTP_REFERER",RefererUrl)}
+   if FallLoad=1{
+	   w "HTTP/1.1 200",$c(13,10)
+       w "Content-type: application/x-javascript",$c(13,10)
+       w "Connection: close"_$c(13,10,13,10)
+	   d ..clsConnect() q   
+   }
+   ;  если обрабатываем  терминальный запрос , тогда выходим
+   q:isTerminal=1
+   // установить область имен по URL запросу
+   d ..SelectNameSpace()
+  ; Разбираем Куки в параметры
+   d ..ParseСookie()
+  ; Разбираем параметры из URL строки 
+   d ..ParseParam(zapros)
+   ; Инициируем сесию ---
+   d ..InitSession()
+   s %LastIO=$IO  u %LastIO::("^"_$zn) d ##class(%Device).ReDirectIO($$$YES)   
+   ;  Запрашиваемый ресурс не найден
+   if ..GerUrlContent(zapros)=1{
+   }else{
+	  d ..GetNoPage()
+   }
+   d ##class(%Device).ReDirectIO($$$NO)  u %LastIO
+   s ind="" , count=0
+   for {
+     s ind=$o(^||mteTEST(ind))   
+     q:ind=""
+     if $l(%response.CharSet)>0 { 
+       w $zcvt(^||mteTEST(ind),"o",%response.CharSet)
+     }else{
+       w ^||mteTEST(ind)
+     }
+   } 
+   k ^||mteTEST  
+   d ..clsConnect()
+   q
+]]></Implementation>
+</Method>
+
+<Method name="GerUrlContent">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>zapros</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+  ;
+  ; Запоминаем расширение файла как тип содержимого
+    s typ=$p(zapros ,".", $l(zapros,"."))
+    s typ=$p(typ,"/?",1)
+    s typ=$p(typ,"/",1)
+    d %request.InsertCgiEnv("CONTENT_TYP",typ)
+       if $l(%request.Get("typ",""))>0  d %request.InsertCgiEnv("CONTENT_TYP",%request.Get("typ","")) 
+       ; Имя класса
+       s ClassNameCsp=$SYSTEM.CSP.GetClassName("/"_%request.CgiEnvs("QUERY_PAGE"))
+       if ..GetClsHtml(ClassNameCsp,0,0)=1     q 1 
+       s PathFileLocal=$SYSTEM.CSP.GetFileName("/"_%request.CgiEnvs("QUERY_PAGE"))
+       if ..GetRawHtml(PathFileLocal)=1   q 1
+       if $d(%CacheStaticPath),$l(%CacheStaticPath)>0{ 
+          s PathFileLocal=%CacheStaticPath_"/"_%request.CgiEnvs("QUERY_PAGE")
+          s PathFileLocal=$replace(PathFileLocal,"/","\")
+          if ..GetRawHtml(PathFileLocal)=1   q 1
+       }
+       ; s ShortPage=$e(%request.CgiEnvs("QUERY_PAGE"),$l(app),$l(%request.CgiEnvs("QUERY_PAGE")))
+       ; // w $SYSTEM.CSP.GetFileName("/csp/user/Untitled1.CSP")
+       ; s PathFileLocal=$tr(Path_ShortPage,"/","\")
+       ; if ..GetRawHtml(PathFileLocal)=1  d ..clsConnect() q 1
+       q 0
+]]></Implementation>
+</Method>
+
+<Method name="GetClsHtml">
+<Description>
+Метод запуска класса</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>ClassName="",addLib=0,ReadFromBuff=1</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+   if $l(ClassName)'=0 {
+      ; if $zcvt($e(ClassName,$l(ClassName)-$l("cls"),$l(ClassName)) ,"L")=".cls" {
+      ;    s ClassName=$e(ClassName,1,$l(ClassName)-$l(".cls"))          
+      ; }
+     if $zObjClassMethod("%CompiledClass","%ExistsId",ClassName)=1 {
+       If $System.CLS.IsMthd(ClassName,"OnPreHTTP") {
+                ; try{  }CATCH err{  zw err           }
+                s %response.Redirect=""
+                d $zObjClassMethod(ClassName,"OnPreHTTP")    
+                if $l(%response.Redirect)>0{
+	                if $e(%response.Redirect,1,1)="/"  s %response.Redirect=$e(%response.Redirect,2,$l(%response.Redirect))
+	                d %request.InsertCgiEnv("QUERY_PAGE",$p(%response.Redirect,"/?",1))
+                    s %request.URL="/"_%request.CgiEnvs("QUERY_PAGE")
+                    d %request.InsertCgiEnv("PATH_TRANSLATED",$tr(%request.GetCgiEnv("LOCAL_PATH")_"/"_$p(%response.Redirect,"/?",1),"/","\"))
+	                q ..GerUrlContent(%response.Redirect)   
+                }
+             }
+           
+            w "HTTP/1.1 200",$c(13,10)
+            w "Content-type: "_%response.ContentType
+            if $l(%response.CharSet)>0   w "; charset="_%response.CharSet
+            w $c(13,10)
+            if $d(%response.Headers("CONTENT-DISPOSITION")){
+	            w "Content-Disposition: "_%response.Headers("CONTENT-DISPOSITION")_$c(13,10)
+            }
+            if $d(%response.Headers("PRAGMA")){
+	            w "PRAGMA: "_%response.Headers("PRAGMA")_$c(13,10)
+            }
+            if $l(%response.ContentLength)>0 {
+               w "Content-Length: "_%response.ContentLength_$c(13,10)
+            }
+             w "Connection: close"_$c(13,10,13,10)
+             try{ 
+                if %response.ContentType["html" {
+                  ;   <script  type='text/javascript' src='/csp/broker/cspxmlhttp.js'></script>
+                  ;   <script  type='text/javascript' src='/csp/broker/cspbroker.js'></script>
+                  ;  if $zObjClassMethod("%CompiledClass","%ExistsId",%CacheClassLibCSP)=1 {
+                  ;    &html<<script language="JavaScript" type="text/javascript" src="#($SYSTEM.CSP.GetDefaultApp($ZU(5)))#/#($zcvt(%CacheClassLibCSP,"O","URL"))#.cls"></script> >
+                  ;  }
+                }
+                d $zObjClassMethod(ClassName,"OnPage")   
+             }CATCH err{ zw err }
+             q 1
+          }
+    }   
+    q 0
+]]></Implementation>
+</Method>
+
+<Method name="GetRawHtml">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>rawFileName</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+      if ##class(%File).Exists(rawFileName)'=1 q 0
+      ; старый вариант получения расширения
+      s rashirenie=$ZCVT($p(rawFileName ,".", $l(rawFileName,".")),"L")   
+      s typ=..ContentType("."_rashirenie) 
+      w "HTTP/1.1 200",$c(13,10)
+      w "Content-type: "_typ
+      if $l(%response.CharSet)>0   w "; charset="_%response.CharSet
+      w $c(13,10)
+      w "Connection: close"_$c(13,10,13,10)
+      s isBin=1
+      s:typ="application/x-javascript" isBin=0
+      s:typ="text/plain" isBin=0
+      s:typ="text/html" isBin=0
+      s:typ="text/css" isBin=0
+      if (isBin=0){ 
+         d ..parseHtmlPage(rawFileName,1)
+         q 1
+      }
+      S stream=##class(%FileBinaryStream).%New()
+      S stream.Filename=rawFileName 
+      While 'stream.AtEnd  {
+	      s html=stream.Read(32000)
+          w html
+      }
+      d stream.%Close()
+      s stream=""
+      s file =""
+      q 1
+]]></Implementation>
+</Method>
+
+<Method name="parseHtmlPage">
+<Description>
+Парсим HTML текст заменяя системные тэги !!!</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>rawFileName,isHtmlFile=1</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+     ; if isHtmlFile=1,$zObjClassMethod("%CompiledClass","%ExistsId",%CacheClassLibCSP)=1 {
+     ;    s app=$SYSTEM.CSP.GetAppName(%request.CgiEnvs("QUERY_PAGE")_"/")
+     ;    &html<<script language="JavaScript" type="text/javascript" src="#(app)#/#($zcvt(%CacheClassLibCSP,"O","URL"))#.cls"></script> >
+     ; }
+      S stream=##class(%FileBinaryStream).%New()
+      S stream.Filename=rawFileName 
+      While 'stream.AtEnd  {
+	      s html=stream.Read(32000)
+	      s html=..ExecFragVar(html,"<server>","</server>","")
+	      s html=..ExecFragVar(html,"#(",")#"," w """",")
+	      s html=..ReplaceFragVar(html,"#server(",")#","cspHttpServerMethod")
+	      s html=..ReplaceFragVar(html,"#call(",")#","cspCallHttpServerMethod")
+	      w html
+	  }
+      d stream.%Close()
+      s stream=""
+      q ""
+]]></Implementation>
+</Method>
+
+<Method name="ExecFragVar">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>SrcCode="",Beg="",End="",AddCode=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+      q:SrcCode="" ""   q:Beg="" SrcCode     q:End="" SrcCode
+      if $l(SrcCode,Beg)=1   q SrcCode
+      s ResultText=""
+      k ^||tmpLocal
+      s %LastIO=$IO  u %LastIO::("^"_$zn) d ##class(%Device).ReDirectIO($$$YES)   
+      s ResultText=""
+      s html=SrcCode
+      for {
+          s HtmlFrag=$e(SrcCode,1,$l($p(SrcCode,Beg,1)) ) 
+          w HtmlFrag
+          s SrcCode=$e(SrcCode,$l(HtmlFrag)+1+$l(Beg),$l(SrcCode) ) 
+          s CodeFrag=$e(SrcCode,1, $l($p(SrcCode,End,1)) ) 
+          s SrcCode=$e(SrcCode,$l(CodeFrag)+1+$l(End),$l(SrcCode) ) 
+          if $l(CodeFrag)>0{
+             TRY {  x AddCode_"  "_$tr(CodeFrag,$c(13,10),"   ")   } CATCH ErrorHandle {  w !,"SRC:"_CodeFrag,!  zw ErrorHandle  }
+          }
+        q:SrcCode=""
+      }
+      d ##class(%Device).ReDirectIO($$$NO)  u %LastIO
+      s ind="" , count=0
+      for {
+	     s ind=$o(^||tmpLocal(ind))   
+	     q:ind=""
+	     ; s count=count+1
+	     ; s:count'=1 ResultText=ResultText_$c(13,10)
+	     s ResultText=ResultText_^||tmpLocal(ind)
+	  } 
+      k ^||tmpLocal
+      q ResultText
+]]></Implementation>
+</Method>
+
+<Method name="ReplaceFragVar">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>SrcCode="",Beg="",End="",AddCode=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+      q:SrcCode="" ""   q:Beg="" SrcCode     q:End="" SrcCode
+      if $l(SrcCode,Beg)=1   q SrcCode
+      s ResultText=""
+      k ^||tmpLocal
+      s %LastIO=$IO  u %LastIO::("^"_$zn) d ##class(%Device).ReDirectIO($$$YES)   
+      s ResultText=""
+      s html=SrcCode
+      for {
+          s HtmlFrag=$e(SrcCode,1,$l($p(SrcCode,Beg,1)) ) 
+          w HtmlFrag
+          s SrcCode=$e(SrcCode,$l(HtmlFrag)+1+$l(Beg),$l(SrcCode) ) 
+          s CodeFrag=$e(SrcCode,1, $l($p(SrcCode,End,1)) ) 
+          s SrcCode=$e(SrcCode,$l(CodeFrag)+1+$l(End),$l(SrcCode) ) 
+          if $l(CodeFrag)>0{
+	         w ..ParseServerFun(CodeFrag,AddCode) 
+          }
+        q:SrcCode=""
+      }
+      d ##class(%Device).ReDirectIO($$$NO)  u %LastIO
+      s ind="" , count=0
+      for {
+	     s ind=$o(^||tmpLocal(ind))   
+	     q:ind=""
+	     ; s count=count+1
+	     ; s:count'=1 ResultText=ResultText_$c(13,10)
+	     s ResultText=ResultText_^||tmpLocal(ind)
+	  } 
+      k ^||tmpLocal
+      q ResultText
+]]></Implementation>
+</Method>
+
+<Method name="ParseServerFun">
+<Description>
+Заменить содержимое #server( )# или #call( )#  на JS  функцию</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>CodeFrag="",JsFunName="cspHttpServerMethod"</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	S funName=$p(CodeFrag,"(",1)
+    s args=$e(CodeFrag,$l(funName)+2,$l(CodeFrag)-1)
+    if $d(%session){
+      s funName=$$$cspEncode(%session.Key,$lb(funName))
+    }             
+    if $l(args)>0 {
+	   w JsFunName_"('"_funName_"',"_args_")"
+    }else{
+	   w JsFunName_"('"_funName_"')"
+    }
+	q ""
+]]></Implementation>
+</Method>
+
+<Method name="GetNoPage">
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+        USE $ZUTIL(53):(::"M") w "HTTP/1.1 200",$c(13,10)
+        w "Content-type: text/plain"
+        if $l(%response.CharSet)>0   w "; charset="_%response.CharSet
+        w $c(13,10)
+        w "Connection: close"_$c(13,10,13,10)
+        w !," ================================= " 
+        w !," =      Ресурс не найден         = "  
+        w !," ================================= "
+        w !
+        zw %request
+        w !,!
+        zw %response
+        w !,!
+        zw %session
+        w !,!
+        w !,%response.CharSet
+        q
+]]></Implementation>
+</Method>
+
+<Method name="redirects">
+<Description>
+Публичные точки входа, использующиеся при перенаправлении ввода/вывода</Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<Private>1</Private>
+<ProcedureBlock>0</ProcedureBlock>
+<Implementation><![CDATA[
+wstr(s) s ^||mteTEST($i(^||mteTEST))=s        q
+wchr(c) s ^||mteTEST($i(^||mteTEST))=$c(c)    q
+wnl s ^||mteTEST($i(^||mteTEST))=$$$NL        q
+wff s ^||mteTEST($i(^||mteTEST))=$c(12)       q
+wtab(s) s ^||mteTEST($i(^||mteTEST))=s        q
+]]></Implementation>
+</Method>
+
+<Method name="InitSession">
+<Description>
+инициализации сесии</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+   s ip=%request.GetCgiEnv("CLIENT_IP")
+   s zapros=%request.GetCgiEnv("QUERY_PAGE")
+   s ipKey="%ZWebNode.Server@"_$p(ip,":",1)
+   ; Шифрование ключа (если конечно есть желание)
+   ; s pass=ipKey,HashPwd="" 
+   ; F ix489=1:1:7 { S HashPwd=HashPwd_$ZCRC(pass,ix489)}  
+   ; s ipKey=HashPwd
+  
+   if ##class(%ZWebNode.Session).%ExistsId(ipKey)=1{
+       s %session=##class(%ZWebNode.Session).%OpenId(ipKey)
+   } else {
+       s %session=##class(%ZWebNode.Session).%New(ipKey)
+   }
+   s %session.ProcessId="|"_$zu(5)_"|"_zapros ;  "%ZWebNode.Server: job"_$job_" "
+   S %session.AppTimeout = %request.GetCgiEnv("TIME_OUT")
+   ; d %session.Login("_SYSTEM")
+    
+   S %session.BrowserPlatform="Windows" 
+   S %session.BrowserName = "Safari" 
+   S %session.Namespace=%request.GetCgiEnv("NAMESPACE")
+   S %session.UserAgent=%request.GetCgiEnv("HTTP_USER_AGENT","")
+   d %session.%Save()
+   d %session.Unlock()
+   d %session.%Save()
+   q
+]]></Implementation>
+</Method>
+
+<Method name="SelectNameSpace">
+<Description>
+Метод для установки области имен по URL запросу</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+   ; Переключаем область имен по Вэб приложению
+   d $zu(5,"%SYS") 
+   s app=$SYSTEM.CSP.GetAppName(%request.CgiEnvs("QUERY_PAGE"))
+   s app="/"_$e(app,1,$l(app)-1)
+   s SqlStrTmp=" select TOP 1 NameLowerCase,NameSpace,Path,NameLowerCase from Security.Applications where id=?"
+   s SQLobj=##class(%SQL.Statement).%New()
+   d SQLobj.%Prepare(SqlStrTmp)
+   s DataSet=SQLobj.%Execute(app)
+   s CountApp=0
+   s Path=""
+   while DataSet.%Next() { s CountApp=CountApp+1 s Path=DataSet.Path d $zu(5,DataSet.NameSpace) } 
+   d %request.InsertCgiEnv("NAMESPACE",$zu(5)) ; Запоминаем имя области имен
+   k SQLobj  
+   q $ZU(5)
+]]></Implementation>
+</Method>
+
+<Method name="ParseСookie">
+<Description>
+
+ разбираем Сookie</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+   q:$l(%request.GetCgiEnv("COOKIE"))=0
+   s arg=%request.GetCgiEnv("COOKIE")
+   do %request.InsertCookie("COOKIE",arg)
+   for ind=1:1:$l(arg,"; ")  d
+   .    s tmp= $p(arg,"; ",1)
+   .    if $l(tmp,"=")=2  d
+   .    .  s ParamName=$p(tmp,"=",1)
+   .    .  s zndch=$p(tmp,"=",2)
+   .    e  d
+   .    .   s ParamName=$p(tmp,"=",1)
+   .    .   s zndch=""
+   .    do %request.InsertCgiEnv(ParamName,zndch) 
+   .    ; do %request.InsertCookie(ParamName,zndch)
+   .    ; s ^deb($job,ParamName)=zndch
+   s ParamName=""
+]]></Implementation>
+</Method>
+
+<Method name="ParseParam">
+<Description>
+
+разбираем Параметры в строке URL запроса </Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>zapros</FormalSpec>
+<Implementation><![CDATA[
+   ;
+   ;  разбираем Параметры в строке запроса
+   if $l(zapros)'=0 d
+   .     s arg=zapros
+   .     d %request.InsertCgiEnv("QUERY_PAGE",$p(arg,"/?",1))
+   .     s %request.URL="/"_%request.CgiEnvs("QUERY_PAGE")
+   .     d %request.InsertCgiEnv("PATH_TRANSLATED",$tr(%request.GetCgiEnv("LOCAL_PATH")_"/"_$p(arg,"/?",1),"/","\"))
+   .     if $l(arg,"?")>1  d
+   .     .  if $l($p(arg,"?",1))=0  d
+   .     .  .  s arg="/"_arg
+   .     s arg=$p(arg,"/?",2) 
+   .     if $l(arg)>0  d
+   .     .  s indParam=0
+   .     .  for   q:arg=""   d
+   .     .  .    s tmp= $p(arg,"&",1)
+   .     .  .    if $l(tmp,"=")=2  d
+   .     .  .    .  s ParamName=$p(tmp,"=",1)
+   .     .  .    .  s zndch=$p(tmp,"=",2)
+   .     .  .    e  d
+   .     .  .    .  ; s indParam=indParam+1
+   .     .  .    .  ; s ParamName="param"_indParam
+   .     .  .    .  ; s zndch=$p(tmp,"=",1)
+   .     .  .    .  s ParamName=$p(tmp,"=",1)
+   .     .  .    .  s zndch=""
+   .     .  .    s arg=$p(arg ,tmp,2)
+   .     .  .    if $l(arg)>1 s arg=$e( arg,2,$l(arg))
+   .     .  .    q:ParamName=""
+   .     .  .    ; s ParamName = $ZCVT(ParamName,"L")
+   .     .  .    ; d %request.Set(ParamName,zndch)
+   .     .  .    Do %request.Set(ParamName,zndch) 
+   .     .  .    ; d %request.InsertCgiEnv(ParamName,zndch)
+   .     .  .    s ParamName=""
+   q
+]]></Implementation>
+</Method>
+
+<Method name="KillFeature">
+<Description>
+Удаление механизме, который сливает информацию  Intersystems</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+      w !,"kill DeepSee.FeatureGetter",!
+	  d $system.OBJ.Delete("DeepSee.FeatureGetter") 
+	  w !,"kill FT.Atelier.v1",!
+	  d $system.OBJ.Delete("FT.Atelier.v1") 
+	  w !,"kill FT.OSTypeGetter",!
+	  d $system.OBJ.Delete("FT.OSTypeGetter") 
+	  w !,"kill FT.MirrorGetter",!
+	  d $system.OBJ.Delete("FT.MirrorGetter") 
+	  w !,"kill FT.LicenseGetter",!
+	  d $system.OBJ.Delete("FT.LicenseGetter") 
+	  w !,"kill FT.IdentifyingInfoGetter",!
+	  d $system.OBJ.Delete("FT.IdentifyingInfoGetter") 
+	  w !,"kill FT.EncDBGetter",!
+	  d $system.OBJ.Delete("FT.EncDBGetter") 
+	  w !,"kill FT.OSTypeGetter",!
+	  d $system.OBJ.Delete("FT.OSTypeGetter") 
+	  w !,"kill FT.EMSGetter",!
+	  d $system.OBJ.Delete("FT.EMSGetter") 
+	  d $system.OBJ.Delete("FT.Collector") 
+	  d $system.OBJ.Delete("%SYS.Task.FeatureTracker") 
+	  w !,"kill ^ISC.FTSnapshot",!
+	  k ^ISC.FTSnapshot
+]]></Implementation>
+</Method>
+
+<Method name="ContentType">
+<Description>
+Определить MIME тип по имени файла</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>FileName</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+     s rashirenie=$p(FileName ,".", $l(FileName,"."))
+     s rashirenie= $ZCVT(rashirenie,"l")
+     q:rashirenie="css" "text/css"
+     q:rashirenie="js" "application/x-javascript"
+     q:rashirenie="xml" "text/xml"
+     q:rashirenie="dtd" "text/xml"
+   ; -------------------------------------
+     q:rashirenie="txt" "text/plain"
+     q:rashirenie="inf" "text/plain"
+     q:rashirenie="nfo" "text/plain"
+     q:rashirenie="php" "text/plain"
+   ; -------------------------------------
+     q:rashirenie="html" "text/html"
+     q:rashirenie="csp" "text/html"
+     q:rashirenie="htm" "text/html"
+     q:rashirenie="shtml" "text/html"
+     q:rashirenie="shtm" "text/html"
+     q:rashirenie="stm" "text/html"
+     q:rashirenie="sht" "text/html"
+     q:rashirenie="sht" "text/html"
+     q:rashirenie="csp" "text/html"
+     q:rashirenie="mac" "text/html"
+     q:rashirenie="cls" "text/html"
+     q:rashirenie="jpg" "image/jpeg"
+
+     ; q:rashirenie="cos" "text/html" ; каше обжект скрипт
+   ; -------------------------------------
+     q:rashirenie="mpeg" "video/mpeg"
+     q:rashirenie="mpg" "video/mpeg"
+     q:rashirenie="mpe" "video/mpeg"
+   ; -------------------------------------
+     q:rashirenie="ai" "application/postscript"
+     q:rashirenie="zip" "application/zip"
+                  q:rashirenie="zsh" "text/x-script.zsh"
+                  q:rashirenie="x-png" "image/png"
+                  q:rashirenie="xls" "application/x-excel"
+                  q:rashirenie="xlm" "application/excel"
+                  q:rashirenie="wav" "audio/x-wav"
+                  q:rashirenie="txt" "text/plain"
+                  q:rashirenie="tiff" "image/tiff"
+                  q:rashirenie="tif" "image/x-tiff"
+                  q:rashirenie="text" "text/plain"
+                  q:rashirenie="swf" "application/x-shockwave-flash"
+                  q:rashirenie="sprite" "application/x-sprite"
+                  q:rashirenie="smil" "application/smil"
+                  q:rashirenie="sh" "text/x-script.sh"
+                  q:rashirenie="rtx" "text/richtext"
+                  q:rashirenie="rtf" "text/richtext"
+                  q:rashirenie="pyc" "application/x-bytecode.python"
+                  q:rashirenie="py" "text/x-script.phyton"
+                  q:rashirenie="png" "image/png"
+                  q:rashirenie="pic" "image/pict"
+                  q:rashirenie="mp3" "video/mpeg"
+                  q:rashirenie="mp2" "video/mpeg"
+                  q:rashirenie="movie" "video/x-sgi-movie"
+                  q:rashirenie="mov" "video/quicktime"
+                  q:rashirenie="mjpg" "video/x-motion-jpeg"
+                  q:rashirenie="mime" "www/mime"
+                  q:rashirenie="mif" "application/x-mif"
+                  q:rashirenie="midi" "audio/midi"
+                  q:rashirenie="js" "application/javascript"
+                  q:rashirenie="jpeg" "image/jpeg"
+                  q:rashirenie="jps" "image/x-jps"
+                  q:rashirenie="jam" "audio/x-jam"
+                  q:rashirenie="jav" "text/plain"
+                  q:rashirenie="java" "text/x-java-source"
+                  q:rashirenie="htm" "text/html"
+                  q:rashirenie="html" "text/html"
+                  q:rashirenie="gzip" "application/x-gzip"
+                  q:rashirenie="gif" "image/gif"
+                  q:rashirenie="gl" "video/gl"
+                  q:rashirenie="csh" "text/x-script.csh"
+                  q:rashirenie="css" "text/css"
+                  q:rashirenie="bsh" "application/x-bsh"
+                  q:rashirenie="bz" "application/x-bzip"
+                  q:rashirenie="bz2" "application/x-bzip2"
+                  q:rashirenie="c" "text/plain"
+                  q:rashirenie="c++" "text/plain"
+                  q:rashirenie="cat" "application/vnd.ms-pki.seccat"
+                  q:rashirenie="cc" "text/plain"
+                  q:rashirenie="htmls" "text/html"
+                  q:rashirenie="bmp" "image/bmp"
+                  q:rashirenie="bm" "image/bmp"
+                  q:rashirenie="avi" "video/avi"
+                  q:rashirenie="avs" "video/avs-video"
+                  q:rashirenie="au" "audio/basic"
+                  q:rashirenie="arj" "application/arj"
+                  q:rashirenie="art" "image/x-jg"
+                  q:rashirenie="asf" "video/x-ms-asf"
+                  q:rashirenie="asm" "text/x-asm"
+                  q:rashirenie="asp" "text/asp"
+     q "application/octet-stream"
+]]></Implementation>
+</Method>
+
+<Method name="clsConnect">
+<Description>
+Закрытие соединения , очистка переменных (глобалов)</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+   ; Close dev  
+   ; w *-1,!
+   w *-2,$c(13,10)
+   s isCloseChaild=0   
+   k ^mtempWebNodeServerPost($JOB)
+   TRY { d %session.%Save()   } CATCH {}
+   q
+]]></Implementation>
+</Method>
+</Class>
+</Export>

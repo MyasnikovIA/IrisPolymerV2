@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:18">
+<Class name="%ZWebNode.project">
+<Super>%RegisteredObject</Super>
+<TimeChanged>65259,38075.15012</TimeChanged>
+<TimeCreated>65259,37741.811087</TimeCreated>
+
+<Method name="ExportProject">
+<Description>
+ d ##class(%ZWebNode.project).ExportProject("D:\%ZWebNode.xml")
+ d ##class(%ZWebNode.project).ExportProject()</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>FileName=""</FormalSpec>
+<Implementation><![CDATA[
+   s oldNS=$zu(5)
+   d $zu(5,"%SYS")		
+   if FileName =""{
+	  s FileName=$$GetFilename^%apiCSP("/csp/sys/bower_components/")_"/%ZWebNode.xml"
+   }
+   k all                                                                                              
+   s ClassName="" 
+   f   s ClassName=$o(^oddDEF(ClassName))   q:ClassName=""    d  
+   .   q:$l(ClassName,"%ZWebNode.")=1     
+   .   s all(ClassName_".cls")=""     
+   ; k ^rMAP(classname)
+   ; k ^rOBJ(classname)
+    /// получаем список CSP файлов
+    s gl=..GetCSPFiles()
+    s file=""
+    for {
+  	   s file=$o(@gl@(file))
+  	   q:file=""
+  	   s url=$lg(@gl@(file),1)
+  	   s urlTxt=$zcvt(url,"L")
+  	   continue:$l(url,"%ZWebNode.xml")=2
+  	   continue:$l(urlTxt,".git")=2
+  	   s all(url)=""
+    }
+   d $system.OBJ.Export(.all,FileName,,,"CP1251")
+   d $zu(5,oldNS)	
+   q
+]]></Implementation>
+</Method>
+
+<Method name="GetCSPFiles">
+<Description>
+ s gl=##class(Demo.ExportAllClass).GetCSPFiles()</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>gl="mtempGetCSPFiles("_$JOB_")"</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[
+ #define CSPAppDirDoesNotExist 5956
+ s num=0
+ s url="/csp/sys/bower_components" 
+ i $e(url,$L(url))="/"!($e(url,$L(url))="\") s url=$e(url,1,$l(url)-1)
+ s recurse=1
+ s dir=##class(%File).NormalizeDirectory($$GetFilename^%apiCSP(url))
+ d ..GetDirCspExport(gl,dir)
+ q gl
+]]></Implementation>
+</Method>
+
+<Method name="GetDirCspExport">
+<Description>
+Метод создает глобал сосписком файлов в каталоге ( и подкаталогах)</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>gl="mtempGetCSPApplications("_$JOB_")",Dir=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+ s filter=""
+ s rs = ##class(%Library.ResultSet).%New("%Library.File:FileSet")
+ s sc = rs.Execute(Dir,filter,"Name")
+ k files
+ while rs.Next()
+ {
+     s name = rs.Get("Name")
+     if (rs.Get("Type") = "D")
+     {
+        d ..GetDirCspExport(gl,name)
+     }else{
+        if (($l(name,".git")=1)){
+          s @gl@(name)=$SYSTEM.CSP.FilenameToUrls(name)
+        }
+     }
+  }
+]]></Implementation>
+</Method>
+</Class>
+</Export>

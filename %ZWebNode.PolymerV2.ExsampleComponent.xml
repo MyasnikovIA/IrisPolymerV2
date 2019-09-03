@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:08">
+<Class name="%ZWebNode.PolymerV2.ExsampleComponent">
+<Super>%RegisteredObject</Super>
+<TimeChanged>65259,48716.141931</TimeChanged>
+<TimeCreated>65259,34018.335669</TimeCreated>
+
+<Property name="restxt">
+<Type>%String</Type>
+</Property>
+
+<Property name="NewProperty1">
+<Type>%String</Type>
+<ClientName>ObserverFun</ClientName>
+<InitialExpression>"вввввв"_$ZDT($H)</InitialExpression>
+</Property>
+
+<Property name="NewProperty2">
+<Type>%String</Type>
+<ClientName>ObserverFun2</ClientName>
+<InitialExpression>" Время "_$ZDT($H)</InitialExpression>
+</Property>
+
+<Property name="NewPropertyArray">
+<Type>%ZWebNode.PolymerV2.Type.Array</Type>
+<ClientName>ObserverFun</ClientName>
+<InitialExpression>"[""фдврыалфвыра"",""elem2"",""elem3""]"</InitialExpression>
+</Property>
+
+<Property name="NewPropertyObject">
+<Type>%ZWebNode.PolymerV2.Type.Object</Type>
+<ClientName>ObserverFun</ClientName>
+<InitialExpression>"{'Name':'Иванов','Возр.':666}"</InitialExpression>
+</Property>
+
+<Parameter name="TagName">
+<Default>demo-element</Default>
+</Parameter>
+
+<XData name="template">
+<Data><![CDATA[
+<dom-module id="#(%TagName)#">
+  <template>
+    <h3>Statically-configured icon-toggles</h3>
+    <h3>Data-bound icon-toggle</h3>
+    <h1><span>{{restxt}}</span></h1>
+    <div><span>[[MyMessage()]]</span></div>
+    <div><span>[[MyMessage2()]]</span></div>
+    <br/>
+    <br/>--------------------<br/>
+    <div><span>NewProperty1: {{NewProperty1}}</span></div>
+    <button on-click="onClickFunc">Change value NewProperty1</button>
+    <br/>--------------------<br/>
+    <div><span>NewProperty2: {{NewProperty2}}</span><input value="{{NewProperty2::input}}"/></div>
+    <br/>--------------------<br/>
+    <div><span>NewPropertyArray: {{NewPropertyArray}}</span></div>
+    <div><span>NewPropertyObject: {{NewPropertyObject}}</span></div>
+    
+  </template>
+</dom-module>
+]]></Data>
+</XData>
+
+<Method name="MyMessage">
+<FormalSpec>tes=1,test2=3</FormalSpec>
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[
+	 var MyAlertLocal=function(msg) {  console.log('MyAlert',msg); }
+	 #server(..MyMessage2(MyAlertLocal))# ;
+     return 'You really like me! - русские буквы';
+]]></Implementation>
+</Method>
+
+<Method name="MyMessage2">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>arg1="",arg2=""</FormalSpec>
+<Language>cache</Language>
+<ReturnType>%String</ReturnType>
+<WebMethod>1</WebMethod>
+<Implementation><![CDATA[
+   w " Сообщение из MyMessage2: "_$zdt($h,4)
+   q ""
+]]></Implementation>
+</Method>
+
+<Method name="onClickFunc">
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[
+    //this.NewProperty1='This is new value after clicking the button...---';
+    this.set('NewProperty1','---');
+]]></Implementation>
+</Method>
+
+<Method name="ObserverFun">
+<FormalSpec>oldVal="",newVal=""</FormalSpec>
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[
+    /// пример асинхронного запроса 
+    console.log('oldVal',oldVal,'newVal',newVal);
+    var ColBack=function(ThisContext,txt){ 
+          ThisContext.NewProperty2=txt;  
+    }
+    SendServer('%ZWebNode.PolymerV2.ExsampleComponent.MyMessage2',oldVal,newVal,ColBack,this)
+]]></Implementation>
+</Method>
+
+<Method name="ObserverFun2">
+<FormalSpec>oldVal="",newVal=""</FormalSpec>
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[    console.log('oldVal',oldVal,'newVal',newVal);
+]]></Implementation>
+</Method>
+</Class>
+</Export>

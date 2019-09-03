@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.2 (Build 309U_SU)" ts="2019-09-03 14:00:05">
+<Class name="%ZWebNode.PolymerV2.Components">
+<Description><![CDATA[
+Подключение компонентов на CSP странице
+#("<link rel='import' href='"_$zcvt("%ZWebNode.PolymerV2.Components","O","URL")_".cls'>")# ]]></Description>
+<Super>%CSP.Page</Super>
+<TimeChanged>65259,49711.426538</TimeChanged>
+<TimeCreated>65259,33340.912898</TimeCreated>
+
+<Method name="ExecFrag">
+<Description>
+Метод разбики исходного текста на Cache` код и HTML текст</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>SrcCode="",Beg="",End=""</FormalSpec>
+<Implementation><![CDATA[     q:SrcCode=""   q:Beg=""    q:End=""    for ExecFragInd=1:1:$l(SrcCode,End){  s tmp=$p(SrcCode,End,ExecFragInd)   s Html=$p(tmp,Beg,1)     s Code=$p(tmp,Beg,2)   w Html   TRY {    if $L(Code)>0 { x " w """", "_Code}    } CATCH ErrorHandle {    zw ErrorHandle  }    }
+]]></Implementation>
+</Method>
+
+<Method name="DrawXdata">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>Name={##This_":template"}</FormalSpec>
+<Language>cache</Language>
+<ReturnType>%Library.Status</ReturnType>
+<Implementation><![CDATA[
+   if $l(Name,":")=1,$e(Name,1,2)'=".."{  s Name=".."_Name  }
+   if $e(Name,1,2)=".." {  s ClassName=##This,XdataName=$e(Name,3,$l(Name))
+   }else{                  s ClassName=$p(Name,":",1),XdataName=$p(Name,":",2)  }
+   s gl="^oddDEF("""_ClassName_""",""x"","""_XdataName_""",21)"  
+   s FragOnPageInd=""  f {  s FragOnPageInd=$o(@gl@(FragOnPageInd))  q:FragOnPageInd=""     d ..ExecFrag(@gl@(FragOnPageInd),"#(",")#")     w $c(13,10)  }
+]]></Implementation>
+</Method>
+
+<Method name="OnPage">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+    /// Вычитываем тело POST запроса
+	if $isobject(%request.Content){
+ 	   d ..ExecPostQuery() 
+	   q 1
+	}
+    d ..CreatePolymerComponents()
+    Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ReplaceFragVar">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>SrcCode="",Beg="",End="",AddCode="",ClassName=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+      q:SrcCode="" ""   q:Beg="" SrcCode     q:End="" SrcCode
+      if $l(SrcCode,Beg)=1   q SrcCode
+      s ResultText=""
+      s html=SrcCode
+      for {
+          s HtmlFrag=$e(SrcCode,1,$l($p(SrcCode,Beg,1)) ) 
+          s ResultText=ResultText_HtmlFrag
+          s SrcCode=$e(SrcCode,$l(HtmlFrag)+1+$l(Beg),$l(SrcCode) ) 
+          s CodeFrag=$e(SrcCode,1, $l($p(SrcCode,End,1)) ) 
+          s SrcCode=$e(SrcCode,$l(CodeFrag)+1+$l(End),$l(SrcCode) ) 
+          if $l(CodeFrag)>0{
+	         s ResultText=ResultText_..ParseServerFun(CodeFrag,AddCode,ClassName) 
+          }
+        q:SrcCode=""
+      }
+      q ResultText
+]]></Implementation>
+</Method>
+
+<Method name="ParseServerFun">
+<Description>
+Заменить содержимое #server( )# или #call( )#  на JS  функцию</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>CodeFrag="",JsFunName="cspHttpServerMethod",ClassName=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	s res=""
+	S funName=$p(CodeFrag,"(",1)
+    s args=$e(CodeFrag,$l(funName)+2,$l(CodeFrag)-1)
+    if $d(%session){
+	   if $e(funName,1,2)="..",$l(ClassName)>0 {
+ 		  s funName=ClassName_$e(funName,2,$l(funName))
+ 	   }
+       s funName=$$$cspEncode(%session.Key,$zu(5)_":"_funName) 
+    }             
+    if $l(args)>0 {
+	   s res= JsFunName_"('"_funName_"',"_args_")"
+    }else{
+	   s res= JsFunName_"('"_funName_"')"
+    }
+	q res
+]]></Implementation>
+</Method>
+
+<Method name="ParseServer">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>SrcCode="",ClassName</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	 s Beg1="#(",End1=")#"
+	 if $l(SrcCode,Beg1)=1 q SrcCode
+	 s res=""
+	 for ExecFragInd1=1:1:$l(SrcCode,End1){
+        s tmp=$p(SrcCode,End1,ExecFragInd1)  
+        s Html=$p(tmp,Beg1,1)   
+        s Code=$p(tmp,Beg1,2)  
+        s res=res_Html   
+        if $l(Code)>0{
+	       TRY { 
+	          XECUTE ("(out) SET out="_Code, .resOut)
+	       } CATCH ErrorHandle {  
+	           s resOut=ErrorHandle  
+	       }
+           s res=res_resOut
+        }
+	 }        
+	 q res
+]]></Implementation>
+</Method>
+
+<Method name="CreatePolymerComponents">
+<Description>
+Поиск классов , которые будут интерпритированный в Polymer компоненты</Description>
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+     s %ClassName=##this 
+     /// https://polymer-library.polymer-project.org/1.0/docs/devguide/observers
+     w "<link rel='import' href='bower_components/polymer/polymer.html'>",!
+     w "<script>"
+     d ..readJSFunctionFromCacheClass(##this)
+     w !,"</script>",!
+	 s ClassName=""
+	 for {
+	   s ClassName=$o(^oddDEF(ClassName))
+	   q:ClassName=""
+	   if $d(^oddDEF(ClassName,"x","template")){
+		   if $d(^oddDEF(ClassName,"p","TagName")),$d( ^oddDEF(ClassName,"p","TagName",22)){
+		       s %TagName=^oddDEF(ClassName,"p","TagName",22)
+		       s %ClassNameJS=$zcvt($tr($replace(ClassName,".","_"),"%","_"),"L")
+			   d ..DrawXdata(ClassName_":template")
+			   w " <script>",!
+			   w "class "_%ClassNameJS_" extends Polymer.Element { ",!
+			   w "    static get is() { return '"_%TagName_"' }",!
+			   if $d(^oddDEF(ClassName,"a")){
+	     		   w "    static get properties() { ",!
+	               w "       return {",!
+	               /// Пример объявления переменной
+	               /// Property NewProperty1 As %String [ ClientName = ObserverFun, InitialExpression = {$ZDT($H)} ];
+	               s ProperCount=0
+	       		   s ProperName=""
+	       		   for {
+		       		     s ProperName=$o(^oddDEF(ClassName,"a",ProperName))
+		       		     Q:ProperName=""
+		       		     s ProperCount=ProperCount+1 
+		       		     W "         "
+		       		     if ProperCount'=1 w ","
+		       		     w ProperName_" : { ",!
+		       		     if $d(^oddDEF(ClassName,"a",ProperName,5)){
+			       		      s typ=^oddDEF(ClassName,"a",ProperName,5)
+			       		      s typ=$p(typ,".",$l(typ,"."))
+			       		      s typ=$tr(typ,"%","")
+			       		      w "             type: "_typ,!
+		       		     }
+		       		     if $d(^oddDEF(ClassName,"a",ProperName,26)){ // ClientName
+		       		         s ObserverFun=^oddDEF(ClassName,"a",ProperName,26)
+		       		         w "             , observer: '"_ObserverFun_"'",!
+		       		     }
+		       		     if $d(^oddDEF(ClassName,"a",ProperName,31)){ // InitialExpression
+		       		        s value=^oddDEF(ClassName,"a",ProperName,31)
+		       		        d ..ConvertValueCodePage(value)
+		       		     }else{
+		       		        w "             , value: null ",!
+		       		     }  
+		       		     W "           }",!
+	       		   }
+	       		   w "         }",!
+	     		   w "     }",!
+	     	    }            
+	     	    //// Пример объявления функции
+	     	    ///      ClientMethod MyMessage(tes = 1, test2 = 3) [ Language = javascript, WebMethod ]
+	     	    ///      ClassMethod MyMessage2(arg1 = "", arg2 = "") As %String [ Language = cache, WebMethod ]
+               if $d(^oddDEF(ClassName,"m")){
+	              s MethodName="" 
+	              for  {
+		              s MethodName=$o(^oddDEF(ClassName,"m",MethodName))
+		              q:MethodName=""
+		              
+		              if $d(^oddDEF(ClassName,"m",MethodName,51)),^oddDEF(ClassName,"m",MethodName,51)=1{
+			            
+			              s static=""  
+				          if $d(^oddDEF(ClassName,"m",MethodName,23)){
+					           s static="static"  
+				          }
+ 						  s args=""
+				          if $d(^oddDEF(ClassName,"m",MethodName,27)){
+					          s argstmp=^oddDEF(ClassName,"m",MethodName,27)
+					          for sp=1:1:$l(argstmp,","){
+						        s args=args_$p($p(argstmp,",",sp),"=",1)
+						        if $l(argstmp,",")>1,sp'=$l(argstmp,",")  s args=args_","
+					           }
+				          }				          
+			              if $d(^oddDEF(ClassName,"m",MethodName,70)),^oddDEF(ClassName,"m",MethodName,70)=1{
+				              w "    "_static_" "_MethodName_"("_args_") { ",!
+				                s ind=""
+				                for {
+				                  s ind=$o(^oddDEF(ClassName,"m",MethodName,30,ind))
+				                  q:ind=""
+				                  s line=^oddDEF(ClassName,"m",MethodName,30,ind)
+				                  s line=..ParseServer(line,ClassName)
+				                  s line=..ReplaceFragVar(line,"#server(",")#","SendServer",ClassName)
+				                  w line
+				                  w $c(10)
+				                }
+				              w "    }",!
+	                     }
+	                     
+	                     if $d(^oddDEF(ClassName,"m",MethodName,32)),^oddDEF(ClassName,"m",MethodName,32)'="javascript"{
+		                    w "     "_MethodName_"("_args_") { ",!
+		                    
+		                    w "       try {  "
+		                    if $d(^oddDEF(ClassName,"m",MethodName,42)) {
+			                   s isEval=0
+		                    }else{
+			                   s isEval=1 
+		                    }
+		                    if isEval=0 w "return"
+		                    if isEval=1 w " eval("
+		                    s ^||WEVENT=$$$cspEncode(%session.Key,$zu(5)_":"_ClassName_"."_MethodName) 
+		                    w " SendServer('"_^||WEVENT_"'"
+                            if $l(args)>0 w ","_args
+		                     w ")"  
+		                    if isEval=1 w ")"
+		                    w ";  } catch (e) { "
+		                    if isEval=0 w " return e ;"
+		                    if isEval=1 w " console.log('ERROR','"_ClassName_":"_MethodName_"',e) ;"
+		                    w "   } ",!
+		                    w "     }",!   
+	                     }
+		              }
+	              }
+	               
+               }
+	           w "}",!
+	           w "customElements.define("_%ClassNameJS_".is,"_%ClassNameJS_");",!
+	           w "</script>",!
+		   	}
+	     }
+	 }
+]]></Implementation>
+</Method>
+
+<Method name="ConvertValueCodePage">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>value=""</FormalSpec>
+<Implementation><![CDATA[
+	  ; Русские буквы в Chrome
+	  ; s value=$zcvt(value,"o","UTF8")
+	  ; s value=$zcvt(value,"I","CP1251")
+	  
+      TRY { 
+	     XECUTE ("(out) SET out="_value, .valueOut)
+      } CATCH ErrorHandle {  
+	     s valueOut=ErrorHandle  
+      }
+      // Усли значение начинается с символов "[" или "{" , тогдавыводим значение без изменений (как объект)
+	  if (($e(valueOut,1,1)="{") || ($e(valueOut,1,1)="[")) {
+	     w "             , value: "_valueOut_" ",!
+	  }else{
+	     w "             , value: '"_$zcvt(valueOut,"o","JS")_"'",!
+	  }
+]]></Implementation>
+</Method>
+
+<Method name="readJSFunctionFromCacheClass">
+<Description><![CDATA[
+<pre>
+
+Варианты параметров классов 
+ 1) [ Language = cache, WebMethod ]
+ 2) [ Language = javascript, WebMethod ]
+
+Пример классов , которые будут интерпритированы в JS функции:
+    ClassMethod test2()as %String [ Language = cache, WebMethod ]{ zw  q ""}
+    ClientMethod test3() [ Language = javascript, WebMethod ]{    alert('test3()');}
+    Property cspXMLHttp As %String [ ServerOnly = 1 ];
+    Property cspUseGetMethod As %Boolean [ InitialExpression = 0, ServerOnly = 1 ];
+    Property cspMozilla As %Boolean [ InitialExpression = "nill", ServerOnly = 1 ];
+   
+</pre>
+ <h2>Переписать  %Library.ClassDefinition на  <h2>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>ParentClassName="",MethodName="",DrawDescript=1</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+     s onEventFun=",onblur,onerror,onfocus,onload,onresize,onscroll,onbeforeunload,onhashchange,onlanguagechange,onmessage,onoffline,ononline,onpagehide,onpageshow,onpopstate,onrejectionhandled,onstorage,onunhandledrejection,onunload,onabort,oncancel,oncanplay,oncanplaythrough,onchange,onclick,onclose,oncontextmenu,oncuechange,ondblclick,ondrag,ondragend,ondragenter,ondragleave,ondragover,ondragstart,ondrop,ondurationchange,onemptied,onended,oninput,oninvalid,onkeydown,onkeypress,onkeyup,onloadeddata,onloadedmetadata,onloadstart,onmousedown,onmouseenter,onmouseleave,onmousemove,onmouseout,onmouseover,onmouseup,onmousewheel,onpause,onplay,onplaying,onprogress,onratechange,onreset,onseeked,onseeking,onselect,onshow,onstalled,onsubmit,onsuspend,ontimeupdate,ontoggle,onvolumechange,onwaiting,onauxclick,ongotpointercapture,onlostpointercapture,onpointercancel,onpointerdown,onpointerenter,onpointerleave,onpointermove,onpointerout,onpointerover,onpointerup,onbeforecopy,onbeforecut,onbeforepaste,oncopy,oncut,onpaste,onsearch,onselectstart,onwheel,onwebkitfullscreenchange,onwebkitfullscreenerror"
+     if $d(%NameSpaceDefault){
+	     &js</*  %NameSpaceDefault: #(%NameSpaceDefault)#   */>
+     }
+     if $zObjClassMethod("%CompiledClass","%ExistsId",ParentClassName)'=1 {
+	  &js</*
+         Класс #(ParentClassName)# не найден  	  
+	  */>
+     }
+     // s ClassOref=##class(%Dictionary.ClassDefinition).%New(ParentClassName)
+     
+     s ClassOref=##class(%ClassDefinition).%OpenId(ParentClassName)
+     if ClassOref {
+       s ConstructMethod=$p(ParentClassName,".",$l(ParentClassName,"."))
+       s count=ClassOref.Properties.Count() 
+       for i=1:1:count {
+            s nam=ClassOref.Properties.GetAt(i).Name
+            continue:'$d(^oddDEF(ParentClassName,"a",nam,57))
+            continue:^oddDEF(ParentClassName,"a",nam,57)'=1
+            w "  var "_ClassOref.Properties.GetAt(i).Name_" "
+            if $d(^oddDEF(ParentClassName,"a",nam,31)) {
+                 s val=^oddDEF(ParentClassName,"a",nam,31)
+                 if val="""null""" w "=null;"_$c(13,10)  continue
+                 s typ=""
+                 if $d(^oddDEF(ParentClassName,"a",nam,5)) {
+                    s typ=^oddDEF(ParentClassName,"a",nam,5)
+                    if $e(typ,1,1)="%",$l(typ,".")=1 {
+                       s typ=$REPLACE(typ,"%","%Library.")
+                    }
+                 }   
+                 if typ="" {
+                     if $l(typ ," ")=1 { w "="_$e(val,2,$l(val)-1)_";"_$c(13,10)  continue }
+                    try {   x "w "_val   }catch(e){  w "="_$e(val,2,$l(val)-1)_";"_$c(13,10)  continue }
+                 }
+                 
+                 if typ="%Library.Boolean" {
+                      if $e(val,1,1)="""" {
+                         w "=" 
+                         try {   x "w "_val   }catch(e){  if +val=1 { w "=true"  }else     { w "=false" }   }
+                      }else {
+                        if val=1 { w "=true"  }else     { w "=false" }
+                      }
+                 }elseif  typ="%Library.Integer" {
+                     if $e(val,1,1)="""" {
+                         w "=" 
+                         try {   x "w "_val   }catch(e){  s val=+val  w val }
+                      } else {
+                          s val=+val  w val
+                      } 
+                 }else{
+	                 
+                     if $e(val,1,1)'="""" {
+                           w "=""" 
+                           try {   x "w "_val   }catch(e){  w val   }
+                           w """"
+                      }else {
+                         w "="_val
+                      } 
+                 }
+            }
+            w ";"_$c(13,10) 
+       }
+       s ConstructMethodIndex=""
+       s count=ClassOref.Methods.Count()
+       for i=1:1:count {
+            if (MethodName=""){
+               continue:$l(ClassOref.Methods.GetAt(i).Name,"OnPage")'=1
+               continue:ClassOref.Methods.GetAt(i).Name="OnPreHTTP"
+               continue:ClassOref.Methods.GetAt(i).Name="OnPostHTTP"
+               continue:ClassOref.Methods.GetAt(i).Name="getLibOne"
+               continue:ClassOref.Methods.GetAt(i).Name="GetJSMethodFromClientMethod"
+               continue:ClassOref.Methods.GetAt(i).Name="readJSFunctionFromCacheClass"
+            }else{
+                continue:ClassOref.Methods.GetAt(i).Name'=MethodName   
+            }
+           /// [ ServerOnly = 1 ]
+           // continue:'$d(^oddDEF(ParentClassName,"m",ClassOref.Methods.GetAt(i).Name,59))
+           // continue:^oddDEF(ParentClassName,"m",ClassOref.Methods.GetAt(i).Name,59)'=1
+           
+           /// [ WebMethod ]
+           continue:'$d(^oddDEF(ParentClassName,"m",ClassOref.Methods.GetAt(i).Name,51))
+           continue:^oddDEF(ParentClassName,"m",ClassOref.Methods.GetAt(i).Name,51)'=1
+          
+          if $ZCVT(ClassOref.Methods.GetAt(i).Name,"L")=$ZCVT(ConstructMethod,"L"){
+             s ConstructMethodIndex=i
+             continue    
+          }
+          
+          if DrawDescript=1 {
+             if $l(ClassOref.Methods.GetAt(i).Description)>0,ParentClassName'=##this{
+                w !,"/*",!
+                w $replace(ClassOref.Methods.GetAt(i).Description,"*/","-/-")
+                w !,"*/"
+             }
+          }
+          // Получаем JS представление Cache клиент метода
+           if ClassOref.Methods.GetAt(i).Language="javascript" {
+               w !,"var "_ClassOref.Methods.GetAt(i).Name_"=function("
+               s param=ClassOref.Methods.GetAt(i).FormalSpec
+               for ind=1:1:$l(param,","){
+                   s subParam=$p(param,",",ind)
+                   s subParam=$p(subParam,":",1)
+                   s subParam=$p(subParam,"=",1)
+                   w:ind'=1 ","
+                   w subParam
+               }
+               w "){",!
+                 d ..ExecFrag(ClassOref.Methods.GetAt(i).Code,"/*(",")*/")
+                 // w ClassOref.Methods.GetAt(i).Code
+                 w !,"};"
+                
+            }
+           // Получаем JS представление Cache класс метода
+           if ClassOref.Methods.GetAt(i).Language="cache" {
+                   w !,"var "_ClassOref.Methods.GetAt(i).Name_"=function(){",!
+                   ; if $d(^oddDEF(ParentClassName,"m",ClassOref.Methods.GetAt(i).Name,42)){ w "return "}
+                   s WEVENT=$$$cspEncode(%session.Key,$zu(5)_":"_ParentClassName_"."_ClassOref.Methods.GetAt(i).Name)
+                   w "   return cspHttpServerMethod('"_WEVENT_"',arguments);"
+                   w !,"};"
+           }
+                
+         }
+         // После отрисовки функций, создаем конструктор( если конечно он встретился ранее)
+         if ConstructMethodIndex'="" {
+           s i=ConstructMethodIndex
+           if ClassOref.Methods.GetAt(i).Language="javascript" {
+              d ..ExecFrag(ClassOref.Methods.GetAt(i).Code,"/*(",")*/")
+           }
+           if ClassOref.Methods.GetAt(i).Language="cache" {
+              s WEVENT=$$$cspEncode(%session.Key,$zu(5)_":"_ParentClassName_"."_ClassOref.Methods.GetAt(i).Name)
+              w " cspHttpServerMethod('"_WEVENT_"',arguments);"
+           }
+         }
+       }
+       q ""
+]]></Implementation>
+</Method>
+
+<Method name="ExecPostQuery">
+<ClassMethod>1</ClassMethod>
+<Implementation><![CDATA[
+      s jsonTxt=""
+ 	   for {
+         q:%request.Content.AtEnd
+         s jsonTxt=jsonTxt_%request.Content.Read(32000)	     
+      }
+ 	  do ##class(%ZEN.Auxiliary.jsonProvider).%ConvertJSONToObject(jsonTxt,,.%RequestSrv,1)
+ 	  s ClassMethod=%RequestSrv.GetAt(1)
+      s ClassMethod=$p(ClassMethod,"&",1)	         
+      // if $e(ClassMethod,1,2)=".."{
+      if $l(ClassMethod,".")>1{
+         s %method=$p(ClassMethod,".",$l(ClassMethod,"."))
+         s %class=$e(ClassMethod,1,$l(ClassMethod)-$l(%method)-1)
+      }else{
+	     s ClassMethod=$$$cspDecode(%session.Key,ClassMethod)
+	     s NameSpace=$p(ClassMethod,":",1)
+	     s ClassMethod=$p(ClassMethod,":",2)
+         s %method=$p(ClassMethod,".",$l(ClassMethod,"."))
+         s %class=$e(ClassMethod,1,$l(ClassMethod)-$l(%method)-1)
+      }
+ 	  Set count=%RequestSrv.Count()-1
+      set args=count
+      s numArg=0
+      for j=2:1:%RequestSrv.Count(){
+ 	     s numArg=numArg+1
+         set args(numArg) = %RequestSrv.GetAt(j)
+      }
+      k j,numArg,%RequestSrv,count,ClassMethod
+      if '$d(^oddDEF(%class,"m",%method,70)) {
+         if '$d(^oddDEF(%class,"m",%method,42)) {
+           // XECUTE ("(out) SET out="_value, .valueOut)
+           x " do $classmethod(%class, %method, args...) "
+         } Else {
+           x " w $classmethod(%class, %method, args...) "
+         }
+       }else{
+         if $d(^oddDEF(%class,"m",%method,30)){
+            for ind=1:1:^oddDEF(%class,"m",%method,30){
+               w:ind'=1 $c(13,10)
+               d ..ExecFrag(^oddDEF(%class,"m",%method,30,ind),"/*(",")*/")
+            }
+         }
+       }
+]]></Implementation>
+</Method>
+
+<Method name="CreateRequest">
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[
+    var Request = false;
+
+    if (window.XMLHttpRequest)
+    {
+        //Gecko-совместимые браузеры, Safari, Konqueror
+        Request = new XMLHttpRequest();
+    }
+    else if (window.ActiveXObject)
+    {
+        //Internet explorer
+        try
+        {
+             Request = new ActiveXObject("Microsoft.XMLHTTP");
+        }    
+        catch (CatchException)
+        {
+             Request = new ActiveXObject("Msxml2.XMLHTTP");
+        }
+    }
+ 
+    if (!Request)
+    {
+        console.log("Невозможно создать XMLHttpRequest");
+    }
+    
+    return Request;
+]]></Implementation>
+</Method>
+
+<Method name="SendServer">
+<FormalSpec>MethodName</FormalSpec>
+<Language>javascript</Language>
+<WebMethod>1</WebMethod>
+<ClientMethod>1</ClientMethod>
+<Implementation><![CDATA[
+    var FunCallBack=null;
+    var ContextElement=null;
+    
+    
+    var arr=new Array();
+    if ((''+SendServer.arguments[1])=='[object Arguments]'){
+       for(var ind in SendServer.arguments[1]){
+	        if (SendServer.arguments[1][ind]==undefined){continue;} 
+	        if (typeof SendServer.arguments[ind] === 'function'){
+		       FunCallBack=SendServer.arguments[ind];
+	           continue;
+	        } 
+	        if ((SendServer.arguments[ind]+'') == '[object HTMLElement]'){
+		       ContextElement=SendServer.arguments[ind];
+	           continue;
+	        } 
+	        arr.push(SendServer.arguments[1][ind]); 
+	   }   
+    }else{
+       for(var ind in SendServer.arguments){
+	     if (SendServer.arguments[ind]==undefined){continue;} 
+	     if (typeof SendServer.arguments[ind] === 'function'){
+		    FunCallBack=SendServer.arguments[ind];
+	        continue;
+	     } 
+         if ((SendServer.arguments[ind]+'') == '[object HTMLElement]'){
+             ContextElement=SendServer.arguments[ind];
+	         continue;
+	     } 
+         arr.push(SendServer.arguments[ind]); 
+       }   
+    }
+    var UrlServerController='/*($zcvt(%ClassName,"O","URL")_".cls"  )*/';
+    var requestSendServer = CreateRequest();
+    requestSendServer.ontimeout = function (e) { alert('TymeOut'); }
+    if (FunCallBack==null){
+        requestSendServer.open('POST',UrlServerController , false);
+	    requestSendServer.send(JSON.stringify(arr));  
+	    if (requestSendServer.status !== 200) {
+	        return {"error":requestSendServer.status}
+	    }
+	    return requestSendServer.responseText;
+    }else{
+	    requestSendServer.open('POST', UrlServerController, true);
+        requestSendServer.onreadystatechange = function() {
+  	      if (this.readyState == 4 && this.status == 200) {
+	         if (typeof FunCallBack === 'function'){
+	              if (ContextElement!=null){
+	                 FunCallBack(ContextElement,this.responseText);
+	              }else{
+	                 FunCallBack(this.responseText);
+	              }
+	          }
+	       };
+	    };
+	    requestSendServer.send(JSON.stringify(arr));
+    }
+]]></Implementation>
+</Method>
+</Class>
+</Export>

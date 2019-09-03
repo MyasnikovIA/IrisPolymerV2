@@ -1,0 +1,16 @@
+{
+  "name": "paper-input",
+  "license": "http://polymer.github.io/LICENSE.txt",
+  "homepage": "https://github.com/PolymerElements/paper-input",
+  "version": "3.0.2",
+  "_release": "3.0.2",
+  "_resolution": {
+    "type": "version",
+    "tag": "v3.0.2",
+    "commit": "75ec735ecdab536e16216f6b5b9080ac40399c05"
+  },
+  "_source": "git://github.com/PolymerElements/paper-input.git",
+  "_target": "^3.0.2",
+  "_originalSource": "git://github.com/PolymerElements/paper-input",
+  "_direct": true
+}
